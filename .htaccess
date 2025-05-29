@@ -1,0 +1,110 @@
+# Disable directory browsing
+Options All -Indexes
+
+# Protect against XSS attacks
+<IfModule mod_headers.c>
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "geolocation=(), midi=(), camera=(), microphone=(), payment=(), sync-xhr=self"
+</IfModule>
+
+# Protect sensitive files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "(^#.*#|\.(bak|config|dist|fla|inc|ini|log|psd|sh|sql|json|lock|swp)|~)$">
+    Order allow,deny
+    Deny from all
+    Satisfy All
+</FilesMatch>
+
+# Prevent script execution
+<DirectoryMatch "^/.*/\.git/">
+    Order deny,allow
+    Deny from all
+</DirectoryMatch>
+
+# Redirect all requests to index.php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Prevent access to system files
+    RewriteCond %{REQUEST_URI} ^system.*
+    RewriteRule ^(.*)$ /index.php?/$1 [L]
+
+    # Prevent access to application files
+    RewriteCond %{REQUEST_URI} ^application.*
+    RewriteRule ^(.*)$ /index.php?/$1 [L]
+
+    # Remove index.php from URL
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [L]
+
+    # Block access to hidden files and directories
+    RewriteCond %{SCRIPT_FILENAME} -d [OR]
+    RewriteCond %{SCRIPT_FILENAME} -f
+    RewriteRule "(^|/)\." - [F]
+</IfModule>
+
+# Handle errors
+ErrorDocument 404 /index.php
+ErrorDocument 403 /index.php
+
+# Prevent access to documentation files
+<FilesMatch "^(README|INSTALL|LICENSE|CHANGELOG|CONTRIBUTING|SECURITY)">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# PHP settings
+<IfModule mod_php7.c>
+    # Session security
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_only_cookies 1
+    
+    # Error handling
+    php_value display_errors 0
+    php_value log_errors 1
+    
+    # File upload limits
+    php_value upload_max_filesize 5M
+    php_value post_max_size 6M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    
+    # PHP security settings
+    php_flag allow_url_fopen Off
+    php_flag allow_url_include Off
+    php_flag enable_dl Off
+    php_flag expose_php Off
+</IfModule>
+
+# Protect against common vulnerabilities
+<IfModule mod_rewrite.c>
+    # Prevent host header attacks
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteCond %{HTTP_HOST} !^$
+    RewriteRule .* - [F]
+    
+    # Block suspicious request methods
+    RewriteCond %{REQUEST_METHOD} ^(HEAD|TRACE|DELETE|TRACK|DEBUG) [NC]
+    RewriteRule .* - [F]
+    
+    # Block suspicious user agents
+    RewriteCond %{HTTP_USER_AGENT} (libwww-perl|wget|python|nikto|curl|scan|java|winhttp|clshttp|loader) [NC,OR]
+    RewriteCond %{HTTP_USER_AGENT} (<|>|'|%0A|%0D|%27|%3C|%3E|%00) [NC,OR]
+    RewriteCond %{HTTP_USER_AGENT} (;|<|>|'|"|\)|\(|%0A|%0D|%22|%27|%28|%3C|%3E|%00).*(libwww-perl|wget|python|nikto|curl|scan|java|winhttp|HTTrack|clshttp|archiver|loader|email|harvest|extract|grab|miner) [NC]
+    RewriteRule .* - [F]
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json
+</IfModule>
